@@ -76,7 +76,7 @@ def write_file(uwu, counter_):
         return counter_ + 1
 
 
-if __name__ == '__main__':
+def main():
     counter = 1
     for value in groups.values():
         idi = value
@@ -87,3 +87,7 @@ if __name__ == '__main__':
             if bla:
                 """Here should be func that inserts values in database"""
                 counter = write_file(bla, counter)
+
+
+if __name__ == '__main__':
+    main()
