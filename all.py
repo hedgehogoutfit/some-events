@@ -27,6 +27,12 @@ def create_date(date, months):
     return d(year, mon, day)
 
 
+def filter_old_events(date_obj):
+    if date_obj < d.today():
+        return True
+    return False
+
+
 def extract_text_link(advert, group_id):
 
     if advert.get('copy_history', -1) != -1:  # check if it's a repost
