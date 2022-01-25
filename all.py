@@ -27,66 +27,105 @@ def create_date(date, months):
     return d(year, mon, day)
 
 
-def extract_text_link(item, group_id):
+def filter_old_events(date_obj):
+    if date_obj < d.today():
+        return True
+    return False
 
-    if item.get('copy_history', -1) != -1:
-        item = item['copy_history'][0]
-    post_id = item['id']
+
+def extract_text_link(advert, group_id):
+
+    if advert.get('copy_history', -1) != -1:  # check if it's a repost
+        advert = advert['copy_history'][0]
+    post_id = advert['id']
     link_ = 'https://vk.com/wall' + str(group_id) + '_' + str(post_id)
-    return item['text'], link_
+    return advert['text'], link_
 
 
-def search_pattern(text, link):
-    months = {"января": 1, "февраля": 2, "марта": 3, "апреля": 4, "мая": 5, "июня": 6, "июля": 7,
-              "августа": 8, "сентября": 9, "октября": 10, "ноября": 11, "декабря": 12}
+months = {"января": 1, "февраля": 2, "марта": 3, "апреля": 4, "мая": 5, "июня": 6,
+          "июля": 7, "августа": 8, "сентября": 9, "октября": 10, "ноября": 11, "декабря": 12}
 
-    date_pattern = r'(\d\d?)\s([а-я]{3,8})'  # 13 октября
-    date = re.search(date_pattern, text)
+
+def search_pattern(tuple_text_link):
+    some_post, link = tuple_text_link
+    date_pattern = r'(\d\d?)\s*([а-я]{3,8})'  # 13 октября
+    date = re.search(date_pattern, some_post)
     if date is None or date.group(2) not in months.keys():
         return None
-    date_obj = create_date(date, months)
 
-    text = text[date.end():]
-    """can be None"""
-    next_2_sent = re.compile(r"""([^\.\?!]+     # one sentence: any character exept ?.!
-                                 (\.|\?|!))     # end of the sentence: punctuation
-                                 {1,2}          # 1 or 2 sentences
-                                 """, flags=re.VERBOSE)
+    date_ = date.group()  # full date like 6 июня
+    text_after_date = some_post[date.end():]  # text slice from date end
+    description = cut_description(text_after_date)
+    place = clean_text(search_place(text_after_date))
+    address = clean_text(search_address(text_after_date))
+    return date_, description, place, address, link
 
-    """Here i exclude all dates that for some reason don't have text after them. Need to check what are these 
-    dates later"""
+
+def extract_time(description):
+    pass
+
+
+def clean_text(text):
+    template = '[^\wа-яА-Я\d\n\s:;-_]'
+    return re.sub(template, '', text, count=0, flags=re.IGNORECASE + re.ASCII)
+
+
+def cut_description(text):
+    template = r'(?<=\n).+\n'
+    if re.search(template, text):
+        crop_point = re.search(template, text).end()
+        return text[:crop_point]
+    else:
+        return text[:400]
+
+
+def search_place(cropped_text):
     try:
-        text = next_2_sent.match(text).group()
+        template1 = [r'(?<=Место:)\n?.+\n', r'(?<=Место проведения:)\n?.+\n',
+                     r'(?<=Место встречи:)\n?.+\n']
+        place = ''
+        for template_ in template1:
+            result = re.search(template_, cropped_text, flags=re.IGNORECASE)
+            if result:
+                place = result.group()
+        return place
     except AttributeError:
         return None
-    replaced = [r'\(.+\)', r'\[.+\]']  # replace all braces
-    for repl in replaced:
-        text = re.sub(repl, '', text)
-    return {'date': date_obj, 'description': text, 'link': link}
 
 
-def write_file(uwu, counter_):
-    """Just for tests"""
-    with open('test_results.txt', 'a') as f:
-        f.write(f'{counter_})\n')
-        f.write(f'~date: {uwu["date"]}\n')
-        f.write(f'~description: {uwu["description"]}\n')
-        f.write(f'~link: {uwu["link"]}')
-        f.write('\n-------------------------------------------------\n\n')
+def search_address(cropped_text):
+    try:
+        template2 = [r'(?<=Адрес проведения:)\n?.+\n', r'(?<=Адрес:)\n?.+\n']
+        address = ''
+        for template_ in template2:
+            result = re.search(template_, cropped_text, flags=re.IGNORECASE)
+            if result:
+                address = result.group()
+        return address
+    except AttributeError:
+        return None
+
+
+def write_file(counter_, source_group, date, description, place, address, link):
+    with open('all_results.txt', 'a', encoding='utf-8') as f:
+        f.write(f'{counter_}) source: {source_group} \n')
+        f.write(f'date: {date} \n')
+        f.write(description)
+        f.write(f'place: {place} \naddress: {address}')
+        f.write(f'\nlink: {link} \n')
+        f.write('--------------------------------------------------------------------\n')
         return counter_ + 1
 
 
 def main():
     counter = 1
-    for value in groups.values():
-        idi = value
-        posts = get_posts(idi, 20)
+    for group in groups.items():
+        posts = get_posts(group[1], 10)
         for post in posts:
-            text_, lnk = extract_text_link(post, idi)
-            bla = search_pattern(text_, lnk)
-            if bla:
+            info_ = search_pattern(extract_text_link(post, group[1]))
+            if info_:
                 """Here should be func that inserts values in database"""
-                counter = write_file(bla, counter)
+                counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
 
 
 if __name__ == '__main__':
