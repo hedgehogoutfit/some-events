@@ -1,6 +1,7 @@
 import vk_api
 import re
 from datetime import date as d
+from datetime import datetime
 
 
 groups = {'Книжный клуб Бездействие': -62622395,
@@ -46,23 +47,58 @@ months = {"января": 1, "февраля": 2, "марта": 3, "апреля
           "июля": 7, "августа": 8, "сентября": 9, "октября": 10, "ноября": 11, "декабря": 12}
 
 
-def search_pattern(tuple_text_link):
+def search_pattern(timestamp, tuple_text_link):
     some_post, link = tuple_text_link
     date_pattern = r'(\d\d?)\s*([а-я]{3,8})'  # 13 октября
     date = re.search(date_pattern, some_post)
     if date is None or date.group(2) not in months.keys():
         return None
-
-    date_ = date.group()  # full date like 6 июня
-    text_after_date = some_post[date.end():]  # text slice from date end
-    description = cut_description(text_after_date)
-    place = clean_text(search_place(text_after_date))
-    address = clean_text(search_address(text_after_date))
-    return date_, description, place, address, link
+    else:
+        text_after_date = some_post[date.end():]  # text slice from date end
+        print(date.groups())  # full date like 6 июня
+        date_ = create_datetime(create_date_string(timestamp, date.groups(),
+                                                   extract_time(text_after_date)))
+        description = cut_description(text_after_date)
+        place = clean_text(search_place(text_after_date))
+        address = clean_text(search_address(text_after_date))
+        return date_, description, place, address, link
 
 
 def extract_time(description):
-    pass
+    """Extract time from description. Return string 00:00 or 00.00"""
+    template = '(\d\d:\d\d)|(\d\d.\d\d)'
+    time = re.search(template, description)
+    if time:
+        return time.group()
+    else:
+        return '00:00'
+
+
+def event_date_with_year(timestamp, event_date):
+    """Take timestamp of posting advert + date like ('6', 'июня');
+     return string %d/%m/%Y"""
+    dt_object = datetime.fromtimestamp(timestamp)  # get date of posting advert as datetime object
+    print('timestamp', dt_object)
+    dt_string = dt_object.strftime("%d/%m/%Y")  # get date of posting advert as string
+    # print(event_date[1])
+    if int(dt_string[3:5]) > months[event_date[1]]:
+        year = int(dt_string[6:]) + 1
+    else:
+        year = int(dt_string[6:])
+    return f'{event_date[0]}/{months[event_date[1]]}/{year}'  # string %d/%m/%Y
+
+
+def create_date_string(timestamp, date, time):
+    """Take timestamp, date like ('2', 'июня'); return string like 2/06/2021 09:15."""
+    dt_string = f'{event_date_with_year(timestamp, date)} {time[:2]}:{time[3:]}'  # "2/06/2021 09:15"
+    return dt_string
+
+
+def create_datetime(date_string):
+    """Create datetime object from string like 2/06/2021 09:15"""
+    # print('def create_datetime')
+    # print(datetime.strptime(date_string, "%d/%m/%Y %H:%M"))
+    return datetime.strptime(date_string, "%d/%m/%Y %H:%M")
 
 
 def clean_text(text):
@@ -82,7 +118,7 @@ def cut_description(text):
 def search_place(cropped_text):
     try:
         template1 = [r'(?<=Место:)\n?.+\n', r'(?<=Место проведения:)\n?.+\n',
-                     r'(?<=Место встречи:)\n?.+\n']
+                     r'(?<=Место встречи:)\n?.+\n', r'(?<=Где:)\n?.+\n']
         place = ''
         for template_ in template1:
             result = re.search(template_, cropped_text, flags=re.IGNORECASE)
@@ -118,14 +154,20 @@ def write_file(counter_, source_group, date, description, place, address, link):
 
 
 def main():
+    line_ = "---------------------------------------------------------------------"
     counter = 1
     for group in groups.items():
         posts = get_posts(group[1], 10)
         for post in posts:
-            info_ = search_pattern(extract_text_link(post, group[1]))
+            timestamp = post['date']
+            info_ = search_pattern(timestamp, extract_text_link(post, group[1]))
             if info_:
                 """Here should be func that inserts values in database"""
+                print('(｡◕‿◕｡) ', f'\n\n{line_}\n\n', sep=' ')
+                print(info_[0])
+                print(info_[1])
                 counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
+                print(f'\n\n{line_}\n\n')
 
 
 if __name__ == '__main__':
