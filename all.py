@@ -56,12 +56,11 @@ def search_pattern(timestamp, tuple_text_link):
    
     text_after_date = some_post[date.end():]  # text slice from date end
 
-    date_ = create_datetime(create_date_string(timestamp, date.groups(),
-                                         extract_time(text_after_date)))
+    date_obj = create_datetime(timestamp, date.groups(),extract_time(text_after_date))
     description = cut_description(text_after_date)
     place = clean_text(search_place(text_after_date))
     address = clean_text(search_address(text_after_date))
-    return date_, description, place, address, link
+    return date_obj, description, place, address, link
 
 
 def extract_time(description):
@@ -69,35 +68,23 @@ def extract_time(description):
     template = '(\d\d:\d\d)|(\d\d.\d\d)'
     time = re.search(template, description)
     if time:
-        return time.group()
+        time = time.group().replace('.', ':')
+        return time
     else:
         return '00:00'
 
 
-def event_date_with_year(timestamp, event_date):
-    """Take timestamp of posting advert + date like ('6', 'июня');
-     return string %d/%m/%Y"""
-    dt_object = datetime.fromtimestamp(timestamp)  # get date of posting advert as datetime object
-    print('timestamp', dt_object)
-    dt_string = dt_object.strftime("%d/%m/%Y")  # get date of posting advert as string
-    # print(event_date[1])
-    if int(dt_string[3:5]) > months[event_date[1]]:
-        year = int(dt_string[6:]) + 1
+def create_datetime(timestamp: int, event_date: tuple, time: str):
+    """Take timestamp, ('6', 'июня'), '00:00' -> datetime_object"""
+    date_obj_post = datetime.fromtimestamp(timestamp)
+    day, month_int = event_date[0], months[event_date[1]]
+
+    if date_obj_post.month > month_int:
+        year = date_obj_post.year + 1
     else:
-        year = int(dt_string[6:])
-    return f'{event_date[0]}/{months[event_date[1]]}/{year}'  # string %d/%m/%Y
+        year = date_obj_post.year
 
-
-def create_date_string(timestamp, date, time):
-    """Take timestamp, date like ('2', 'июня'); return string like 2/06/2021 09:15."""
-    dt_string = f'{event_date_with_year(timestamp, date)} {time[:2]}:{time[3:]}'  # "2/06/2021 09:15"
-    return dt_string
-
-
-def create_datetime(date_string):
-    """Create datetime object from string like 2/06/2021 09:15"""
-    # print('def create_datetime')
-    # print(datetime.strptime(date_string, "%d/%m/%Y %H:%M"))
+    date_string = f'{day}/{month_int}/{year} {time}'
     return datetime.strptime(date_string, "%d/%m/%Y %H:%M")
 
 
@@ -154,7 +141,6 @@ def write_file(counter_, source_group, date, description, place, address, link):
 
 
 def main():
-    line_ = "---------------------------------------------------------------------"
     counter = 1
     for group in groups.items():
         posts = get_posts(group[1], 10)
@@ -166,7 +152,6 @@ def main():
                 
                 counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
                
-
 
 if __name__ == '__main__':
     main()
