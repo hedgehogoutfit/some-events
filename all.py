@@ -14,7 +14,7 @@ groups = {'Книжный клуб Бездействие': -62622395,
 
 def get_posts(group_id, n):  # n is amount of posts
     """Return list of n dictionaries with posts"""
-    session = vk_api.VkApi(token='')
+    session = vk_api.VkApi(token='250a634d14a734f4e6a2422fd581ef4d3aabcd51646097676a6b4fac22baa74831ef5aec48ccbe4009706')
     post_ = session.method('wall.get', {'owner_id': group_id, 'count': n})
     return post_['items']
 
