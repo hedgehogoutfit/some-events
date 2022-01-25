@@ -15,7 +15,7 @@ groups = {'Книжный клуб Бездействие': -62622395,
 
 def get_posts(group_id, n):  # n is amount of posts
     """Return list of n dictionaries with posts"""
-    session = vk_api.VkApi(token='250a634d14a734f4e6a2422fd581ef4d3aabcd51646097676a6b4fac22baa74831ef5aec48ccbe4009706')
+    session = vk_api.VkApi(token='')
     post_ = session.method('wall.get', {'owner_id': group_id, 'count': n})
     return post_['items']
 
@@ -53,15 +53,15 @@ def search_pattern(timestamp, tuple_text_link):
     date = re.search(date_pattern, some_post)
     if date is None or date.group(2) not in months.keys():
         return None
-    else:
-        text_after_date = some_post[date.end():]  # text slice from date end
-        print(date.groups())  # full date like 6 июня
-        date_ = create_datetime(create_date_string(timestamp, date.groups(),
-                                                   extract_time(text_after_date)))
-        description = cut_description(text_after_date)
-        place = clean_text(search_place(text_after_date))
-        address = clean_text(search_address(text_after_date))
-        return date_, description, place, address, link
+   
+    text_after_date = some_post[date.end():]  # text slice from date end
+
+    date_ = create_datetime(create_date_string(timestamp, date.groups(),
+                                         extract_time(text_after_date)))
+    description = cut_description(text_after_date)
+    place = clean_text(search_place(text_after_date))
+    address = clean_text(search_address(text_after_date))
+    return date_, description, place, address, link
 
 
 def extract_time(description):
@@ -163,11 +163,9 @@ def main():
             info_ = search_pattern(timestamp, extract_text_link(post, group[1]))
             if info_:
                 """Here should be func that inserts values in database"""
-                print('(｡◕‿◕｡) ', f'\n\n{line_}\n\n', sep=' ')
-                print(info_[0])
-                print(info_[1])
+                
                 counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
-                print(f'\n\n{line_}\n\n')
+               
 
 
 if __name__ == '__main__':
