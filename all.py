@@ -2,6 +2,8 @@ import vk_api
 import re
 from datetime import date as d
 from datetime import datetime
+import insertings
+import select_event
 
 
 groups = {'Книжный клуб Бездействие': -62622395,
@@ -151,17 +153,18 @@ def write_file(counter_, source_group, date, description, place, address, link):
 
 
 def main():
-    line_ = "---------------------------------------------------------------------"
     counter = 1
-    for group in groups.items():
-        posts = get_posts(group[1], 10)
-        for post in posts:
-            timestamp = post['date']
-            info_ = search_pattern(timestamp, extract_text_link(post, group[1]))
-            if info_:
-                """Here should be func that inserts values in database"""
-                
-                counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
+    insertings.create_table()
+    select_event.write_select_in_html()
+    # for group in groups.items():
+    #     posts = get_posts(group[1], 10)  # here you can put any group id and number of posts
+    #     for post in posts:
+    #         timestamp = post['date']
+    #         info_ = search_pattern(timestamp, extract_text_link(post, group[1]))
+    #         if info_:
+    #             # write to VK_events table inside events.db
+    #             insertings.transfer_to_sql(group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
+    #             # counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
                
 
 
