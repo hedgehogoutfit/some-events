@@ -15,27 +15,21 @@ groups = {'Книжный клуб Бездействие': -62622395,
 
 def get_posts(group_id, n):  # n is amount of posts
     """Return list of n dictionaries with posts"""
-    session = vk_api.VkApi(token='')
+    session = vk_api.VkApi(token='250a634d14a734f4e6a2422fd581ef4d3aabcd51646097676a6b4fac22baa74831ef5aec48ccbe4009706')
     post_ = session.method('wall.get', {'owner_id': group_id, 'count': n})
     return post_['items']
 
 
-def create_date(date, months):
-    """Return date object"""
-    day = int(date.group(1))
-    mon = months[date.group(2)]
-    year = d.today().year
-    return d(year, mon, day)
-
-
-def filter_old_events(date_obj):
-    if date_obj < d.today():
+def filter_old_events(event_date):
+    """Take timestamp of event and compare to date"""
+    if datetime.fromtimestamp(event_date).date() < d.today():
+        print('outdated event: ', datetime.fromtimestamp(event_date).date())
         return True
     return False
 
 
 def extract_text_link(advert, group_id):
-
+    """Return as tuple (text of advert, vk-link to wall post containing that advert)."""
     if advert.get('copy_history', -1) != -1:  # check if it's a repost
         advert = advert['copy_history'][0]
     post_id = advert['id']
@@ -58,6 +52,8 @@ def search_pattern(timestamp, tuple_text_link):
 
     date_ = create_datetime(create_date_string(timestamp, date.groups(),
                                          extract_time(text_after_date)))
+    if filter_old_events(date_):
+        return None
     description = cut_description(text_after_date)
     place = clean_text(search_place(text_after_date))
     address = clean_text(search_address(text_after_date))
@@ -78,7 +74,7 @@ def event_date_with_year(timestamp, event_date):
     """Take timestamp of posting advert + date like ('6', 'июня');
      return string %d/%m/%Y"""
     dt_object = datetime.fromtimestamp(timestamp)  # get date of posting advert as datetime object
-    print('timestamp', dt_object)
+    # print('timestamp', dt_object)
     dt_string = dt_object.strftime("%d/%m/%Y")  # get date of posting advert as string
     # print(event_date[1])
     if int(dt_string[3:5]) > months[event_date[1]]:
@@ -95,10 +91,10 @@ def create_date_string(timestamp, date, time):
 
 
 def create_datetime(date_string):
-    """Create datetime object from string like 2/06/2021 09:15"""
+    """Return timestamp object from string like 2/06/2021 09:15"""
     # print('def create_datetime')
     # print(datetime.strptime(date_string, "%d/%m/%Y %H:%M"))
-    return datetime.strptime(date_string, "%d/%m/%Y %H:%M")
+    return datetime.timestamp(datetime.strptime(date_string, "%d/%m/%Y %H:%M"))
 
 
 def clean_text(text):
@@ -145,7 +141,8 @@ def search_address(cropped_text):
 def write_file(counter_, source_group, date, description, place, address, link):
     with open('all_results.txt', 'a', encoding='utf-8') as f:
         f.write(f'{counter_}) source: {source_group} \n')
-        f.write(f'date: {date} \n')
+        f.write(f'date: {datetime.fromtimestamp(date)} \n')
+        #
         f.write(description)
         f.write(f'place: {place} \naddress: {address}')
         f.write(f'\nlink: {link} \n')
