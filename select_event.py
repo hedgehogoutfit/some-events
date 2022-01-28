@@ -15,6 +15,7 @@ def select_from_sql():
 
 def write_select_in_html():
     data = select_from_sql()
+    print('results for select from the table VK_events / events.db:')
     for row in data:
         print(row)
         with open('events.html', 'a', encoding='utf-8') as out_file:
