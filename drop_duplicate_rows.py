@@ -22,7 +22,8 @@ def find_duplicates():
     return result  # [(2,), (3,), (4,), (5,)]
 
 
-def delete_rows(id_list):
+def delete_rows():
+    id_list = find_duplicates()
     try:
         conn = sqlite3.connect('events.db')
         cursor = conn.cursor()
@@ -36,11 +37,11 @@ def delete_rows(id_list):
     finally:
         if conn:
             conn.close()
-            print("the sqlite connection is closed")
+            print("number of deleted rows: ", len(id_list))
 
 
 def main():
-    delete_rows(find_duplicates())
+    delete_rows()
 
 
 if __name__ == '__main__':
