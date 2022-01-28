@@ -5,10 +5,18 @@ def create_table():
     conn = sqlite3.connect('events.db')
     cursor = conn.cursor()
 
-    cursor.execute("CREATE TABLE if not exists VK_events (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                   "source VARCHAR(255), date_time TIMESTAMP, description VARCHAR(255), "
-                   "place VARCHAR(255), address VARCHAR(255), link VARCHAR(255))")
-    print('the table VK_events already exists in events.db')
+    cursor.execute("""CREATE TABLE if not exists VK_events (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                            source VARCHAR(255), 
+                                                            date_time TIMESTAMP, 
+                                                            description VARCHAR(255),
+                                                            place VARCHAR(255), 
+                                                            address VARCHAR(255), 
+                                                            link VARCHAR(255)
+                                                                                            )""")
+
+    print('the table VK_events / events.db: ')
+    print('| id | source | date_time | description | place | address | link |')
+
     conn.commit()
     conn.close()
 
