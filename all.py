@@ -4,6 +4,7 @@ from datetime import date as d
 from datetime import datetime
 import insertings
 import select_event
+import drop_duplicate_rows
 
 
 groups = {'Книжный клуб Бездействие': -62622395,
@@ -23,7 +24,7 @@ def get_posts(group_id, n):  # n is amount of posts
 
 
 def filter_old_events(event_date):
-    """Take timestamp of event and compare to date"""
+    """Take timestamp of event and compare to today's date"""
     if datetime.fromtimestamp(event_date).date() < d.today():
         print('outdated event: ', datetime.fromtimestamp(event_date).date())
         return True
@@ -49,53 +50,41 @@ def search_pattern(timestamp, tuple_text_link):
     date = re.search(date_pattern, some_post)
     if date is None or date.group(2) not in months.keys():
         return None
-   
+
     text_after_date = some_post[date.end():]  # text slice from date end
 
-    date_ = create_datetime(create_date_string(timestamp, date.groups(),
-                                         extract_time(text_after_date)))
-    if filter_old_events(date_):
+    date_stmp = create_datetime(timestamp, date.groups(), extract_time(text_after_date))
+
+    if filter_old_events(date_stmp):
         return None
+
     description = cut_description(text_after_date)
     place = clean_text(search_place(text_after_date))
     address = clean_text(search_address(text_after_date))
-    return date_, description, place, address, link
+    return date_stmp, description, place, address, link
 
 
 def extract_time(description):
     """Extract time from description. Return string 00:00 or 00.00"""
-    template = '(\d\d:\d\d)|(\d\d.\d\d)'
+    template = '(\d\d:\d\d)|(\d\d\.\d\d)'
     time = re.search(template, description)
     if time:
-        return time.group()
+        time = time.group().replace('.', ':')
+        return time
     else:
         return '00:00'
 
 
-def event_date_with_year(timestamp, event_date):
-    """Take timestamp of posting advert + date like ('6', 'июня');
-     return string %d/%m/%Y"""
-    dt_object = datetime.fromtimestamp(timestamp)  # get date of posting advert as datetime object
-    # print('timestamp', dt_object)
-    dt_string = dt_object.strftime("%d/%m/%Y")  # get date of posting advert as string
-    # print(event_date[1])
-    if int(dt_string[3:5]) > months[event_date[1]]:
-        year = int(dt_string[6:]) + 1
+def create_datetime(timestamp: int, event_date: tuple, time: str):
+    """Take timestamp, ('6', 'июня'), '00:00' -> timestamp"""
+    date_obj_post = datetime.fromtimestamp(timestamp)
+    day, month_int = event_date[0], months[event_date[1]]
+
+    if date_obj_post.month > month_int:
+        year = date_obj_post.year + 1
     else:
-        year = int(dt_string[6:])
-    return f'{event_date[0]}/{months[event_date[1]]}/{year}'  # string %d/%m/%Y
-
-
-def create_date_string(timestamp, date, time):
-    """Take timestamp, date like ('2', 'июня'); return string like 2/06/2021 09:15."""
-    dt_string = f'{event_date_with_year(timestamp, date)} {time[:2]}:{time[3:]}'  # "2/06/2021 09:15"
-    return dt_string
-
-
-def create_datetime(date_string):
-    """Return timestamp object from string like 2/06/2021 09:15"""
-    # print('def create_datetime')
-    # print(datetime.strptime(date_string, "%d/%m/%Y %H:%M"))
+        year = date_obj_post.year
+    date_string = f'{day}/{month_int}/{year} {time}'
     return datetime.timestamp(datetime.strptime(date_string, "%d/%m/%Y %H:%M"))
 
 
@@ -117,6 +106,7 @@ def search_place(cropped_text):
     try:
         template1 = [r'(?<=Место:)\n?.+\n', r'(?<=Место проведения:)\n?.+\n',
                      r'(?<=Место встречи:)\n?.+\n', r'(?<=Где:)\n?.+\n']
+
         place = ''
         for template_ in template1:
             result = re.search(template_, cropped_text, flags=re.IGNORECASE)
@@ -153,19 +143,21 @@ def write_file(counter_, source_group, date, description, place, address, link):
 
 
 def main():
+    insertings.create_table()  # create events.db and VK_events table if not exists
+    # parsing VK groups' walls:
     counter = 1
-    insertings.create_table()
+    for group in groups.items():
+        posts = get_posts(group[1], 10)  # here you can put any group id and number of posts
+        for post in posts:
+            timestamp = post['date']
+            info_ = search_pattern(timestamp, extract_text_link(post, group[1]))
+            if info_:
+                # write to VK_events table inside events.db
+                insertings.transfer_to_sql(group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
+                # write to file
+                # counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
+    drop_duplicate_rows.delete_rows()
     select_event.write_select_in_html()
-    # for group in groups.items():
-    #     posts = get_posts(group[1], 10)  # here you can put any group id and number of posts
-    #     for post in posts:
-    #         timestamp = post['date']
-    #         info_ = search_pattern(timestamp, extract_text_link(post, group[1]))
-    #         if info_:
-    #             # write to VK_events table inside events.db
-    #             insertings.transfer_to_sql(group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
-    #             # counter = write_file(counter, group[0], info_[0], info_[1], info_[2], info_[3], info_[4])
-               
 
 
 if __name__ == '__main__':
